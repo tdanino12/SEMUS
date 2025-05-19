@@ -1,0 +1,24 @@
+env: foraging
+
+env_args:
+  field_size: 10 # 15
+  players: 4 #4
+  seed: 0 
+  max_food: 2 # 4 
+  max_food_level: 3
+  #max_num_food: 5
+  min_player_level: 1
+  min_food_level: 1
+  max_food_level: 3
+  force_coop: True
+  partially_observe: True
+  sight: 2
+  is_print: False
+  need_render: False
+
+learner_log_interval: 10000
+log_interval: 10000
+runner_log_interval: 10000
+t_max: 2050099999999999999999999999999999999999999900
+test_interval: 10000
+test_nepisode: 40
