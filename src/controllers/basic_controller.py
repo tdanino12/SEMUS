@@ -51,18 +51,6 @@ class BasicMAC:
                     all_x = th.tensor([x] * ep_batch.batch_size)
                 all_x = all_x.view(agent_inputs.shape[0],1)
                 agent_outs = self.pf(agent_inputs,idx=all_x)
-
-                # code for episode runner
-                '''
-                #b_size = ep_batch.batch_size
-                #index = b_size/self.args.n_agents
-                #total_size = b_size*self.args.n_agents
-                #agent_outs = self.pf(agent_inputs,idx=th.tensor([float(math.floor(i/index)) for i in range(total_size)]).view(total_size,1))
-                x = [float(i) for i in range(self.args.n_agents)]
-                all_x = th.tensor([x] * ep_batch.batch_size)
-                all_x = all_x.view(agent_inputs.shape[0],1)
-                agent_outs = self.pf(agent_inputs,idx=all_x)
-                '''
         else:
             agent_outs,self.hidden_states= self.agent(agent_inputs, self.hidden_states)
 
@@ -83,24 +71,7 @@ class BasicMAC:
                 #mechane+=np.power(a-q,2)
 
             mechane = th.pow(mechane,2)
-            moment = ((th.tensor(10))*mone)/mechane
-            #mechane = np.power(mechane,2)
-            #moment = (10*mone)/mechane
-            #mechane = th.tensor(mechane)
-            #moment = th.tensor(moment)
-            
-            #m = moment.reshape(agent_outs.shape[0], agent_outs.shape[1])
-            #m2 = np.mean(m, axis=-1)
-            #m2 = m2 - 3
-            #m2 = np.expand_dims(m2, axis=-1)  # Equivalent to m2.unsqueeze(dim=-1)
-            #m2 = np.tile(m2, (1, agent_outs.shape[1]))  # Equivalent to m2.expand(...)
-            
-            #m[m2 < 0] = 0.0
-            #m = m * 0.0001
-            #m = m * 0.001
-            #m = np.clip(m, -0.1, 0.1) 
-            #m = th.tensor(m)
-            
+            moment = ((th.tensor(10))*mone)/mechane       
             m =moment.view(agent_outs.shape[0],agent_outs.shape[1])
             m2 = th.mean(m,dim=-1)
             m2 = m2-th.tensor(3)
@@ -112,19 +83,6 @@ class BasicMAC:
             m = th.clamp(m,-0.1,0.1)
             
             agent_outs = agent_outs+m
-        
-        #agent_outs = agent_outs+th.tensor(0.1)*m 
-        '''
-        agent_outs,a1,a2,a3,a4,a5,a6,a7,self.hidden_states,self.h2,self.h3,self.h4,self.h5,self.h6,self.h7= self.agent(agent_inputs, self.hidden_states,self.h2,self.h3,self.h4,self.h5,self.h6,self.h7)
-
-        combined_tensor = th.stack([a1,a2,a3,a4,a5,a6,a7], dim=0)
-        # Calculate the variance
-        random_number = np.random.rand()
-        if random_number <= 0.01:
-            variance = th.var(combined_tensor,dim=0)
-            variance = th.clamp(variance,-0.1,0.1)
-            agent_out = agent_outs+variance*th.tensor(0.0001)
-        ''' 
 
         # Softmax the agent outputs if they're policy logits
         if self.agent_output_type == "pi_logits":
@@ -152,34 +110,10 @@ class BasicMAC:
                     # Zero out the unavailable actions
                     agent_outs[reshaped_avail_actions == 0] = 0.0
         return agent_outs.view(ep_batch.batch_size, self.n_agents, -1)
-        '''
-        if(training==False):
-            return agent_outs.view(ep_batch.batch_size, self.n_agents, -1)
-        else:
-            return agent_outs.view(ep_batch.batch_size, self.n_agents, -1),a1,a2,a3,a4,a5,a6,a7
-        '''
+
     def init_hidden(self, batch_size):
-        ''' 
-        self.hidden_states,self.h2,self.h3,self.h4,self.h5,self.h6,self.h7 = self.agent.init_hidden()#.unsqueeze(0).expand(batch_size, self.n_agents, -1)  # bav
-        self.hidden_states.unsqueeze(0).expand(batch_size, self.n_agents, -1) 
-        self.h2.unsqueeze(0).expand(batch_size, self.n_agents, -1)
-        self.h3.unsqueeze(0).expand(batch_size, self.n_agents, -1)
-        self.h4.unsqueeze(0).expand(batch_size, self.n_agents, -1)
-        self.h5.unsqueeze(0).expand(batch_size, self.n_agents, -1)
-        self.h6.unsqueeze(0).expand(batch_size, self.n_agents, -1)
-        self.h7.unsqueeze(0).expand(batch_size, self.n_agents, -1)
-        a = 1
-        '''
         if(not self.args.soft_modul):
             self.hidden_states = self.agent.init_hidden().unsqueeze(0).expand(batch_size, self.n_agents, -1)  # bav
-        '''
-        self.h2 = self.agent.init_hidden2().unsqueeze(0).expand(batch_size, self.n_agents, -1)  # ba    
-        self.h3 = self.agent.init_hidden3().unsqueeze(0).expand(batch_size, self.n_agents, -1)  # ba
-        self.h4 = self.agent.init_hidden4().unsqueeze(0).expand(batch_size, self.n_agents, -1)  # ba
-        self.h5 = self.agent.init_hidden5().unsqueeze(0).expand(batch_size, self.n_agents, -1)  # ba
-        self.h6 = self.agent.init_hidden6().unsqueeze(0).expand(batch_size, self.n_agents, -1)  # ba
-        self.h7 = self.agent.init_hidden7().unsqueeze(0).expand(batch_size, self.n_agents, -1)  # ba
-        '''
         a=1
     def parameters(self):
         if(self.args.soft_modul):
@@ -212,48 +146,7 @@ class BasicMAC:
             self.agent.load_state_dict(th.load("{}/agent.th".format(path), map_location=lambda storage, loc: storage))
 
     def _build_agents(self, input_shape):
-        if(self.args.soft_modul):
-            '''
-            net={
-            "hidden_shapes": [400, 400],
-            "em_hidden_shapes": [400],
-            "num_layers": 2,
-            "num_modules": 2,
-            "module_hidden": 256,
-            "num_gating_layers": 2,
-            "gating_hidden": 256,
-            "add_bn": False,
-            "pre_softmax": False
-            }
-        
-            self.soft_agent = agent_REGISTRY["soft"](
-                                                     input_shape=input_shape,
-                                                     em_input_shape=1,
-                                                     output_shape=self.args.n_actions,
-                                                     **net)
-            '''
-            net={
-                "hidden_shapes": [400, 400],
-                "em_hidden_shapes": [400],
-                "module_hidden": 128,
-                "module_num": 16,
-                "gate_hiddens": [256, 256],
-                "top_k": 2,
-                "rescale_prob": True,
-                "route_as_sample": True,
-                "use_resnet": True,
-                "resrouting": True,
-                "task_num": 10,
-                "explore_sample": True,
-                "temperature_sample": True
-            }
-        
-            self.pf = agent_REGISTRY["soft_new"](
-                                                input_shape = input_shape, 
-                                                output_shape = self.args.n_actions,
-                                                **net)
-        else:
-            self.agent = agent_REGISTRY[self.args.agent](input_shape, self.args)
+        self.agent = agent_REGISTRY[self.args.agent](input_shape, self.args)
 
     def _build_inputs(self, batch, t):
         # Assumes homogenous agents with flat observations.
