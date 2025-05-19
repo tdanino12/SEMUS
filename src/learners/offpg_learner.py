@@ -248,73 +248,11 @@ class OffPGLearner:
             mask_t = mask[:, t:t+1]
             if mask_t.sum() < 0.5:
                 continue
-            #k = self.mixer.k(states[:, t:t+1]).unsqueeze(3)
-            #b = self.mixer.b(states[:, t:t+1])
-            q_vals,q1,q2,q3,q4,q5,q6,q7,q8,q9,q10  = self.critic.forward(inputs[:, t:t+1])
-            
-            
-            ###############
-            #combined_tensor = th.cat((q1,q2,q3,q4,q5,q6,q7,q8,q9,q10), dim=-1)
-            # Calculate the variance
-            
-            #variance = th.var(combined_tensor,dim=-1)
-            
-            #variance = variance*mask_t
-            #total_var = th.sum(variance,dim=(-1,-2))
-            #total_var = total_var.unsqueeze(dim=-1)
-            #total_var = total_var.clone().detach()
-               
+            q_vals,q1,q2,q3,q4,q5,q6,q7,q8,q9,q10  = self.critic.forward(inputs[:, t:t+1])     
             mean = (q1+q2+q3+q4+q5+q6+q7+q8+q9+q10)/th.tensor(10)
-            #combined_tensor = th.stack((q1,q2,q3,q4,q5,q6,q7,q8,q9,q10), dim=-1)
-            #product = th.prod(combined_tensor,dim=-1)
-            #product = th.pow(product, 1/10)
         
             q_list = [q1,q2,q3,q4,q5,q6,q7,q8,q9,q10]
-            '''
-            total_div=None
-            mean = mean.clone().detach()
-            mean = mean*mask_t
-            mean = th.softmax(mean-dim=-1)
-            for count,i in enumerate(q_list):
-            
-                ii = th.softmax(i,dim=-1)*men*mask_t
-                #ii[ii==0]=1
-                ii = th.sum(ii,dim=-1)
-                x_i = th.log(ii)*mask_t
-                x_i[th.isnan(x_i)] = 0
-                #x_mean = (i/mean).clone().detach()
-                #x_mean[th.isnan(x_mean)] = 0
-                
-                
-                if(count==0):
-                    total_div = x_i.clone()
-                else:
-                    total_div = total_div +x_i
-             
-            total_div = total_div/th.tensor(100*self.n_agents)
-            total_div = total_div.sum()/mask_t.sum()
-            total_div = th.clamp(total_div*th.tensor(-0.00001),-0.1,0.1)
-            '''
-            '''
-            total_div=None
-            count=0
-            for i in q_list:
-                ii = i*mask_t
-                ii[ii==0]=-100000000
-                ii = th.softmax(ii,dim=-1)
-                for j in q_list: 
-                    jj = j*mask_t
-                    jj[jj==0]=-10000000
-                    jj = th.softmax(jj,dim=-1)
-                    i_j = th.abs(ii-jj)
-                    if(count==0):
-                        total_div = i_j.clone()
-                        count=1
-                    else:
-                        total_div = total_div +i_j
-            #mean=mean*mask_t
-            #mean[mean==0]=-1000000
-            '''
+
             
             total_div=None
             count=0
@@ -357,85 +295,13 @@ class OffPGLearner:
         
             q_err = (q_vals - target_q_t) * mask_t
          
-            '''
-            # Flatten the tensor
-            flattened_tensor = moment[:,t:t+1].view(-1)
-            # Convert to NumPy array
-            numpy_array = flattened_tensor.numpy()
-
-            x = min(len(self.numpy_list)-1,self.index+len(numpy_array))
-            self.numpy_list[self.index:x]=numpy_array[:(x-self.index)]
-            
-            if((self.index+len(numpy_array))>649998):
-                self.first_ind = 649999
-            else:
-                self.first_ind = self.index+len(numpy_array)
-            self.index= (self.index+len(numpy_array))%649999
-            '''
-            #qu = np.quantile(self.numpy_list[:self.first_ind],0.95)
-            #qu = np.max(self.numpy_list[:self.first_ind])
-            #qu = np.mean(self.numpy_list[:self.first_ind])
-            #qu = th.tensor(qu)
-            
-            #total_var[total_var<qu]=th.tensor(0.0)
-            #total_var1 = total_var-th.tensor(5)*(qu-total_var)
-            #total_var[total_var1<0]=th.tensor(0.0)
-
-            #non_zero_count = th.sum(total_var != 0)
-            #print("Number of non-zero elements:", non_zero_count.item())
-            '''
-            moments_new = moment[:,t:t+1]-th.tensor(qu)
-            moments_new[moments_new>0]=th.tensor(0.0)
-            sig = th.tensor(1)/(th.tensor(1)+ th.exp(moments_new))
-             
-
-            sig = sig+th.tensor(0.5)
-            sig = sig.clone().detach()
-            
-            q_err = q_err.squeeze()*sig.squeeze()
-            '''
+   
             if(th.isnan(total_div)):
                  critic_loss = (q_err ** 2).sum() / mask_t.sum()
             else:       
                 critic_loss = (q_err ** 2).sum() / mask_t.sum()
                 critic_loss+=total_div
-             
-
-            ''' 
-            if(t==(max_t-2)):
-                #################
-                regularization_norm = []
-                # Get the norm of parameters for each network
-                net = [self.critic.network1,self.critic.network2,self.critic.network3,self.critic.network4,self.critic.network5,
-                        self.critic.network6,self.critic.network7,self.critic.network8,self.critic.network9,self.critic.network10]
-                for network in net:
-                    params = th.nn.utils.parameters_to_vector(network.parameters())
-                    params_norm = th.norm(params,p=2)
-                    regularization_norm.append(params_norm)
-
-                # Stack the tensors along a new dimension (default is dim=0)
-                stacked_tensor = th.stack(regularization_norm)
-
-                # Calculate the product of all elements in the stacked tensor
-                product = th.prod(stacked_tensor)
-                product = th.pow(product, 1/10)
-
-                total_norm = th.tensor(0.0)
-                for i in regularization_norm:
-                    total_norm += th.pow(th.log(i)- th.log(product),2)
-                total_norm = total_norm/th.tensor(10)
-                #total_norm = total_norm.clone().detach()
-                ################
-                critic_loss+=th.tensor(-0.001)*total_norm
-            '''
-        
-            #Here introduce the loss for Qi
-            #v_vals = th.sum(q_ori * mac_out[:, t:t+1], dim=3, keepdim=True)
-            #ad_vals = q_ori - v_vals
-            #goal = th.sum(k * v_vals, dim=2, keepdim=True) + k * ad_vals
-            #goal_err = (goal - q_ori) * mask_t
-            #goal_loss = 0.1 * (goal_err ** 2).sum() / mask_t.sum()/ self.args.n_actions
-            #critic_loss += goal_loss
+            
             self.critic_optimiser.zero_grad()
             self.mixer_optimiser.zero_grad()
             critic_loss.backward()
