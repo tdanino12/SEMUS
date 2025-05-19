@@ -132,107 +132,13 @@ class OffPGLearner:
         q_vals = q_vals.view(bs,max_t,self.n_agents,-1)
         q_vals = q_vals.detach()[:, :-1]
 
-
-        #combined_tensor = th.cat((q1,q2,q3,q4,q5,q6,q7,q8,q9,q10), dim=-1)
-        #variance = th.var(combined_tensor,dim=-1)
-        #total_var = th.sum(variance,dim=-1)
-        #total_var = total_var.unsqueeze(dim=-1)
-        #total_var = total_var.clone().detach()
-        #total_var = total_var[:,:-1]
-
-
         mac_out = []
-        '''
-        a1_out = []
-        a2_out = []
-        a3_out = []
-        a4_out = []
-        a5_out = []
-        a6_out = []
-        a7_out = []
-        '''
+
         self.mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length - 1):
-            '''
-            agent_outs,a1,a2,a3,a4,a5,a6,a7 = self.mac.forward(batch, t=t,training=True)
-            a1_out.append(a1)
-            a2_out.append(a2)
-            a3_out.append(a3)
-            a4_out.append(a4)
-            a5_out.append(a5)
-            a6_out.append(a6)
-            a7_out.append(a7)
-            '''
             agent_outs = self.mac.forward(batch, t=t)
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1)  # Concat over time
-
-        '''
-        a1_out = th.stack(a1_out, dim=1)  # Concat over time
-        a2_out = th.stack(a2_out, dim=1)  # Concat over time
-        a3_out = th.stack(a3_out, dim=1)  # Concat over time
-        a4_out = th.stack(a4_out, dim=1)  # Concat over time
-        a5_out = th.stack(a5_out, dim=1)  # Concat over time
-        a6_out = th.stack(a6_out, dim=1)
-        a7_out = th.stack(a7_out, dim=1)
-        '''
-        #mac_out = th.stack(mac_out, dim=1)  # Concat over time
-        '''
-        q_list = [a1_out,a2_out,a3_out,a4_out,a5_out,a6_out,a7_out]
-        mean = (a1_out+a2_out+a3_out+a4_out+a5_out+a6_out+a7_out)/th.tensor(7)
-        
-        a1_out = a1_out.view(mac_out.shape[0],mac_out.shape[1],mac_out.shape[2],mac_out.shape[3])
-        a2_out = a2_out.view(mac_out.shape[0],mac_out.shape[1],mac_out.shape[2],mac_out.shape[3])
-        a3_out = a3_out.view(mac_out.shape[0],mac_out.shape[1],mac_out.shape[2],mac_out.shape[3])
-        a4_out = a4_out.view(mac_out.shape[0],mac_out.shape[1],mac_out.shape[2],mac_out.shape[3])
-        a5_out = a5_out.view(mac_out.shape[0],mac_out.shape[1],mac_out.shape[2],mac_out.shape[3])
-        a6_out = a6_out.view(mac_out.shape[0],mac_out.shape[1],mac_out.shape[2],mac_out.shape[3])
-        a7_out = a7_out.view(mac_out.shape[0],mac_out.shape[1],mac_out.shape[2],mac_out.shape[3])
-        mwan = mean.view(mac_out.shape[0],mac_out.shape[1],mac_out.shape[2],mac_out.shape[3])
-
-        a1_out[avail_actions == 0] = th.tensor(float('-inf'))
-        a2_out[avail_actions == 0] = th.tensor(float('-inf'))
-        a3_out[avail_actions == 0] = th.tensor(float('-inf'))
-        a4_out[avail_actions == 0] = th.tensor(float('-inf'))
-        a5_out[avail_actions == 0] = th.tensor(float('-inf'))
-        a7_out[avail_actions == 0] = th.tensor(float('-inf'))
-
-        total_div=None
-        count=0
-        mean = mean.clone().detach()
-        
-        #mean = mean*mask
-        #mean[mean==0]=th.tensor(float('-inf'))
-        mean = th.softmax(mean,dim=-1)
-        mean[th.isnan(mean)] = 0
-
-        for i in  q_list:
-            #ii = i*mask
-            #ii[ii==0]=th.tensor(float('-inf'))
-            ii = th.softmax(i,dim=-1)
-            d = ii*mean
-            d = d.clone().detach()
-            s_t = th.log(th.sum(th.sqrt(d),dim=-1))
-            s_t[th.isnan(s_t)] = 0
-            s_t.requires_grad=True
-            if(count==0):
-                total_div = s_t.clone()
-                count=1
-            else:
-                 total_div = total_div +s_t.clone()
-
-
-        total_div = total_div.sum()/mask.sum()
-
-        total_div = th.clamp(total_div*th.tensor(-0.0001),-0.1,0.1)
-        total_div = total_div/th.tensor(self.n_agents)
-        '''
-
-
-
-
-
-
 
         # Mask out unavailable actions, renormalise (as in action selection)
         mac_out[avail_actions == 0] = 0
@@ -246,11 +152,7 @@ class OffPGLearner:
         # Calculated baseline
         #####q_taken = th.gather(q_vals, dim=3, index=actions).squeeze(3)
         pi = mac_out.view(-1, self.n_actions)
-        #print(q_vals.shape)
-        baseline = th.sum(mac_out * q_vals, dim=-1).view(-1)
-        #x = th.gather(q_vals, dim=3, index=actions).squeeze(3)
-        
-        
+        baseline = th.sum(mac_out * q_vals, dim=-1).view(-1)    
         coma_loss = -(self.mixer.forward(baseline.view(actions.shape[0],actions.shape[1],actions.shape[2]), states,False,None)* mask).sum() / mask.sum()
         
         # Calculate policy grad with mask
