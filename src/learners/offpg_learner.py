@@ -82,7 +82,6 @@ class OffPGLearner:
         pi_taken[mask == 0] = 1.0
         log_pi_taken = th.log(pi_taken)
         coe = self.mixer.k(states).view(-1)
-        #entropy = -(pi*log_pi_taken)
                     
         advantages = (q_taken.view(-1) - baseline).detach()
 
