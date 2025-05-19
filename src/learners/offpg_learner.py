@@ -87,7 +87,6 @@ class OffPGLearner:
         advantages = (q_taken.view(-1) - baseline).detach()
 
         coma_loss = - ((coe * (advantages)* log_pi_taken ) * mask).sum() / mask.sum()
-        #coma_loss = - ((coe * (advantages)* log_pi_taken+total_div ) * mask).sum() / mask.sum()
         # Optimise agents
         self.agent_optimiser.zero_grad()
         coma_loss.backward()
