@@ -145,27 +145,11 @@ class OffPGLearner:
         mac_out = mac_out/mac_out.sum(dim=-1, keepdim=True)
         mac_out[avail_actions == 0] = 0
 
-
-
-
-
         # Calculated baseline
-        #####q_taken = th.gather(q_vals, dim=3, index=actions).squeeze(3)
         pi = mac_out.view(-1, self.n_actions)
         baseline = th.sum(mac_out * q_vals, dim=-1).view(-1)    
         coma_loss = -(self.mixer.forward(baseline.view(actions.shape[0],actions.shape[1],actions.shape[2]), states,False,None)* mask).sum() / mask.sum()
         
-        # Calculate policy grad with mask
-        #pi_taken = th.gather(pi, dim=1, index=actions.reshape(-1, 1)).squeeze(1)
-        #pi_taken[mask == 0] = 1.0
-        #log_pi_taken = th.log(pi_taken)
-        #coe = self.mixer.k(states).view(-1)
-        #entropy = -(pi*log_pi_taken)
-                    
-        #advantages = (q_taken.view(-1) - baseline).detach()
-
-        #coma_loss = - ((coe * (advantages)* log_pi_taken ) * mask).sum() / mask.sum()
-        #coma_loss = - ((coe * (advantages)* log_pi_taken+total_div ) * mask).sum() / mask.sum()
         # Optimise agents
         self.agent_optimiser.zero_grad()
         coma_loss.backward()
@@ -202,8 +186,6 @@ class OffPGLearner:
         states = on_batch["state"]
 
 
-
-
         
         # original:
         #build_target_q
@@ -212,102 +194,14 @@ class OffPGLearner:
         target_q_vals,t_q1,t_q2,t_q3,t_q4,t_q5,t_q6,t_q7,t_q8,t_q9,t_q10 = self.target_critic.forward(target_inputs)
         target_q_vals = target_q_vals.detach()
         
-
-
-
-
-        '''
-        target_list = []
-        q_t_list = [t_q1,t_q2,t_q3,t_q4,t_q5,t_q6,t_q7,t_q8,t_q9,t_q10]
-        for i in q_t_list:
-            t_q = i.detach()
-            t_q = th.gather(t_q, dim=3, index=actions).squeeze(3)
-            t_q = self.target_mixer.forward(t_q, states)
-            t_q = t_q.detach().numpy()
-            target_list.append(t_q)
-        m = np.minimum.reduce(target_list)
-        targets_taken = th.tensor(m)
-        '''
-        #combined_tensor = th.cat((t_q1,t_q2,t_q3,t_q4,t_q5,t_q6,t_q7,t_q8,t_q9,t_q10), dim=-1)
-        '''
-        all_tensors = [t_q1.clone().detach(),t_q2.clone().detach(),t_q3.clone().detach(),t_q4.clone().detach(),
-                       t_q5.clone().detach(),t_q6.clone().detach(),t_q7.clone().detach(),t_q8.clone().detach(),
-                       t_q9.clone().detach(),t_q10.clone().detach()]
-        mone = th.zeros_like(target_q_vals)
-        mechane = th.zeros_like(target_q_vals)
-        for a in all_tensors:
-            mone+=th.pow(a-target_q_vals,4)
-            mechane+=th.pow(a-target_q_vals,2)
-
-        #mone = th.sum(mone,dim=-1)
-        #mechane = th.sum(mechane,dim=-1)
-        mechane = th.pow(mechane,2)
-        moment = ((th.tensor(10))*mone)/mechane - th.tensor(6)
-        moment[moment<0]=th.tensor(0.0)
-        moment = th.mean(moment,dim=-1)
-        moment = th.tensor(1)/(th.tensor(1)+ th.exp(0.1*moment))
-        moment = moment+th.tensor(0.5)
-        moment = th.clamp(moment,0,1)
-        moment = moment.clone().detach()
-        '''
-
-        '''
-        moment = th.mean(moment,dim=-1)
-        moment = moment.unsqueeze(dim=-1)
-        moment = moment.clone().detach()
-        '''
-
-        #moment = moment[:,:-1]
-        
-
-        #variance = th.var(combined_tensor,dim=-1)
-        #total_var = th.sum(variance,dim=-1)
-        #total_var = total_var.unsqueeze(dim=-1)
-        #total_var = total_var.clone().detach()
-        #total_var = total_var[:,:-1]
-        
-        
-        '''
-        # Flatten the tensor
-        flattened_tensor = total_var.view(-1)
-        # Convert to NumPy array
-        numpy_array = flattened_tensor.numpy()
-
-        x = min(len(self.numpy_list)-1,self.index+len(numpy_array)))
-        self.numpy_list[self.index:x]=numpy_array[:(x-self.index)]
-        self.index= (self.index+len(numpy_array))%249999
-        qu = np,quantile(self.numpy_list,0.9)
-        qu = th.tensor(qu)
-        total_var[total_var<qu]=0
-        '''
-        
-        
+    
         # original:
         targets_taken = self.target_mixer(th.gather(target_q_vals, dim=3, index=actions).squeeze(3), states, False,None)
-            
-        #targets_taken = targets_taken#*moment
-        
 
+        
         target_q = build_td_lambda_targets(rewards, terminated, mask, targets_taken, self.n_agents, self.args.gamma, self.args.td_lambda).detach()
-        #target_q = target_q- moment#th.tensor(0.99)*th.tensor(0.001)*th.clamp(total_var,0,self.bound)
         inputs = self.critic._build_inputs(on_batch, bs, max_t)
-        
-
-        #mac_out = []
-        #self.mac.init_hidden(bs)
-        #for i in range(max_t):
-        #    agent_outs = self.mac.forward(on_batch, t=i)
-        #    mac_out.append(agent_outs)
-        #mac_out = th.stack(mac_out, dim=1).detach()
-        # Mask out unavailable actions, renormalise (as in action selection)
-        #mac_out[avail_actions == 0] = 0
-        #mac_out = mac_out / mac_out.sum(dim=-1, keepdim=True)
-        #mac_out[avail_actions == 0] = 0
-        
-
-
-
-        
+          
         # Calculate 1-step Q-Learning targets
         targets = target_q #rewards + self.args.gamma * (1 - terminated) * target_max_qvals
         q_vals,q1,q2,q3,q4,q5,q6,q7,q8,q9,q10  = self.critic.forward(inputs)
@@ -340,30 +234,16 @@ class OffPGLearner:
 
         if best_batch is not None:
             best_target_q, best_inputs, best_mask, best_actions, best_mac_out, best_moment= self.train_critic_best(best_batch)
-            #best_target_q2, best_inputs2, best_mask2, best_actions2, best_mac_out2, best_moment2= self.train_critic_best(on_batch)
 
             log["best_reward"] = th.mean(best_batch["reward"][:, :-1].squeeze(2).sum(-1), dim=0)
-            '''
-            target_q = th.cat((best_target_q, best_target_q2), dim=0)
-            inputs = th.cat((best_inputs, best_inputs2), dim=0)
-            mask = th.cat((best_mask, best_mask2), dim=0)
-            actions = th.cat((best_actions, best_actions2), dim=0)
-            states = th.cat((best_batch["state"],states), dim=0)
-            #mac_out = th.cat((mac_out,best_mac_out), dim=0)
-            #moment = th.cat((moment,best_moment), dim=0)
-            '''
-
             target_q = best_target_q#th.cat((target_q, best_target_q), dim=0)
             inputs = best_inputs #th.cat((inputs, best_inputs), dim=0)
             mask = best_mask #th.cat((mask, best_mask), dim=0)
             actions = best_actions #th.cat((actions, best_actions), dim=0)
             states = best_batch["state"]#th.cat((states, best_batch["state"]), dim=0)
-            #mac_out = best_mac_out #th.cat((mac_out,best_mac_out), dim=0)
-            #moment = th.cat((moment,best_moment), dim=0)
-            
 
+            
         #train critic
-        #mac_out = mac_out.detach()
         for t in range(max_t - 1):
             mask_t = mask[:, t:t+1]
             if mask_t.sum() < 0.5:
@@ -642,52 +522,33 @@ class OffPGLearner:
             mechane+=th.pow(a-target_q_vals,2)
 
         mechane = th.pow(mechane,2)
-        moment = mone/mechane#-th.tensor(3)
-        #moment[moment<0]=th.tensor(0.0)
-        
-        moment = th.mean(moment,dim=-1) #mean(moment,dim=-1)
-        
-        #normalized = th.tanh(moment/2)      # ~ [-1, 1]
+        moment = mone/mechane
 
-        #moment = 5 * normalized + 6 #10 * normalized   
         
-        
+        moment = th.mean(moment,dim=-1) #mean(moment,dim=-1)       
         moment = th.tensor(1)/(th.tensor(1)+ th.exp(moment*0.5))
         moment = moment+th.tensor(0.5)
         #moment = moment
-        moment = th.clamp(moment,0,1) 
-         
-        moment = moment.clone().detach()
-        
-    
+        moment = th.clamp(moment,0,1)    
+        moment = moment.clone().detach()  
         coe = self.target_mixer.k(states).view(-1)
         coe = th.mean(coe,dim=-1)
         coe = coe.detach()
         moment = moment*coe
         moment = moment/coe.sum()
         
-
         moment = th.mean(moment,dim=-1) # th.prod(moment,dim=-1)
         moment = moment.unsqueeze(dim=-1)
         moment = moment.clone().detach()
-        '''
-        coe = self.target_mixer.k(states).view(-1)
-        coe = th.mean(coe,dim=-1)
-        coe = coe.detach()
-        moment = moment*coe
-        '''
         moment = moment[:,:-1]
-        #moment = th.mean(moment,dim=-1)        
+          
          
         moment = th.min(moment,imprtance_sampling[:,:-1])
         #moment = th.min(th.tensor(1),imprtance_sampling[:,:-1])
         #moment = th.min(imprtance_sampling[:, :-1], imprtance_sampling.new_tensor(1.0))
         
         targets_taken = self.target_mixer(th.gather(target_q_vals, dim=3, index=actions).squeeze(3), states,False,None)
-        #sig = th.tensor(1)/(th.tensor(1)+ th.exp(0.01*moment))
-             
-        #sig = sig+th.tensor(0.5)
-        #sig = sig.clone().detach()
+
 
         #expected q
         exp_q = self.build_exp_q(target_q_vals, mac_out, states).detach()
@@ -701,64 +562,15 @@ class OffPGLearner:
         targets_taken[:, :-1] = targets_taken[:, :-1] * mask
         exp_q[:, :-1] = exp_q[:, :-1] * mask
         
-        #td_q = (rewards + moment*(self.args.gamma * exp_q[:, 1:]) - targets_taken[:, :-1]) * mask
         td_q = (rewards + self.args.gamma * exp_q[:, 1:] - targets_taken[:, :-1]) * mask
         
-        #print(critic_mac.shape,moment.shape)
           
-        new_weight = moment # th.tensor(0.5)*critic_mac + th.tensor(0.5)*moment # th.ones_like(critic_mac)
-        
-        #new_weight = th.cumprod(new_weight, dim=-1)
-        #powers = th.arange(1, new_weight.shape[1] + 1, dtype=th.float).to('cuda').view(1, -1, 1)
-        #new_weight = th.pow(new_weight, powers)
-             
-        #new_weight = th.cumsum(new_weight,dim=-1)
-        #new_weight = 1/new_weight
-        
-        #new_weight = new_weight/new_weight.sum()
-        
-        #new_weight = new_weight.detach()
-        #compute target
+        new_weight = moment 
         
         target_q =  build_target_q(td_q, targets_taken[:, :-1], new_weight, mask, self.args.gamma, self.args.tb_lambda, self.args.step).detach()
-        
-        '''
-        target_q =  build_target_q(td_q, targets_taken[:, :-1], mask, self.args.gamma, self.args.tb_lambda, self.args.step).detach()
-        '''
-        #target_q = build_td_lambda_targets(rewards, terminated, mask, targets_taken, self.n_agents, self.args.gamma, self.args.td_lambda).detach()
+    
         target_q = target_q.detach()
-        #combined_tensor = th.cat((q1,q2,q3,q4,q5,q6,q7,q8,q9,q10), dim=-1)
-
-        # Calculate the variance
-        #variance = th.var(combined_tensor,dim=-1)
-        #all_weights = all_weights.view(variance.shape[0],variance.shape[1],variance.shape[2])
-        #####variance = variance*all_weights
-
-        #total_var = th.sum(variance,dim=-1)
-        #total_var = total_var.unsqueeze(dim=-1)
-        #total_var = total_var.clone().detach()
-        #total_var = total_var[:,:-1]
-
-        #target_q = target_q-th.tensor(0.99)*th.tensor(0.001)*th.clamp(total_var,0,self.bound)
         
-        '''
-        all_tensors = [q1,q2,q3,q4,q5,q6,q7,q8,q9,q10]
-        mone = th.zeros_like(target_q_vals)
-        mechane = th.zeros_like(target_q_vals)
-        for a in all_tensors:
-            mone+=th.pow(a-target_q_vals,4)
-            mechane+=th.pow(a-target_q_vals,2)
-
-        #mone = th.sum(mone,dim=-1)
-        #mechane = th.sum(mechane,dim=-1)
-        mechane = th.pow(mechane,2)
-        moment = ((th.tensor(10))*mone)/mechane
-        moment = th.mean(moment,dim=-1)
-        moment = th.sum(moment,dim=-1)
-        moment = moment.unsqueeze(dim=-1)
-        moment = moment.clone().detach()
-        moment = moment[:,:-1]
-        '''
         moment = 0  
         inputs = self.critic._build_inputs(batch, bs, max_t)
 
