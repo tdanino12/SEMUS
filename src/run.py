@@ -217,21 +217,25 @@ def run_sequential(args, logger):
             max_ep_t = max(uni_episode_sample.max_t_filled(), off_episode_sample.max_t_filled())
             uni_episode_sample = process_batch(uni_episode_sample[:, :max_ep_t], args)
             off_episode_sample = process_batch(off_episode_sample[:, :max_ep_t], args)
-            
+
+            '''
             learner.train_critic(uni_episode_sample, best_batch=off_episode_sample, log=running_log)
-            
+            '''
             
             #train actor
             episode_sample = buffer.sample_latest(args.batch_size)
             max_ep_t = episode_sample.max_t_filled()
             episode_sample = process_batch(episode_sample[:, :max_ep_t], args)
             #learner.train_on(uni_episode_sample, runner.t_env, running_log)
+            '''
             learner.train(off_episode_sample, runner.t_env, running_log)
-
+            '''
             #episode_sample = buffer.sample_latest(args.batch_size)
             #max_ep_t = episode_sample.max_t_filled()
             #episode_sample = process_batch(episode_sample[:, :max_ep_t], args)
             learner.train_on(episode_sample, runner.t_env, running_log)
+            learner.start_training(uni_episode_sample, off_episode_sample, episode_sample, running_log, runner.t_env)
+        
         # Execute test runs once in a while
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
         if (runner.t_env - last_test_T) / args.test_interval >= 1.0:
