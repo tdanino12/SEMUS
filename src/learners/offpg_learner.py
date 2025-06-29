@@ -41,6 +41,14 @@ class OffPGLearner:
         self.index = 0
         self.first_ind = 0
 
+    def start_training(on_batch, off_episode_sample, episode_sample, log, t_env: int):
+        self.mac.init_hidden(batch.batch_size)
+        for t in range(batch.max_seq_length - 1):
+            agent_outs = self.mac.forward(off_episode_sample, t=t)
+            mac_out.append(agent_outs)
+        mac_out = th.stack(mac_out, dim=1)  # Concat over time
+
+    
     def train_on(self, batch: EpisodeBatch, t_env: int, log):
         # Get the relevant quantities
         bs = batch.batch_size
@@ -113,7 +121,7 @@ class OffPGLearner:
 
 
 
-    def train(self, batch: EpisodeBatch, t_env: int, log):
+    def train(self, batch: EpisodeBatch, t_env: int, log, mac_out_off):
         # Get the relevant quantities
         bs = batch.batch_size
         max_t = batch.max_seq_length
@@ -134,12 +142,15 @@ class OffPGLearner:
 
         mac_out = []
 
+        '''
         self.mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length - 1):
             agent_outs = self.mac.forward(batch, t=t)
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1)  # Concat over time
-
+        '''
+        mac_out = mac_out_off
+        
         # Mask out unavailable actions, renormalise (as in action selection)
         mac_out[avail_actions == 0] = 0
         mac_out = mac_out/mac_out.sum(dim=-1, keepdim=True)
@@ -332,7 +343,7 @@ class OffPGLearner:
 
 
 
-    def train_critic_best(self, batch):
+    def train_critic_best(self, batch, mac_out_off):
         bs = batch.batch_size
         max_t = batch.max_seq_length
         rewards = batch["reward"][:, :-1]
@@ -344,7 +355,8 @@ class OffPGLearner:
         avail_actions = batch["avail_actions"][:]
         states = batch["state"]
         old_outs = batch["outs"][:, :]
-        
+
+        '''
         # pr for all actions of the episode
         mac_out = []
         self.mac.init_hidden(bs)
@@ -352,6 +364,9 @@ class OffPGLearner:
             agent_outs = self.mac.forward(batch, t=i)
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1).detach()
+        '''
+        mac_out = mac_out_off
+        
         # Mask out unavailable actions, renormalise (as in action selection)
         mac_out[avail_actions == 0] = 0
         mac_out = mac_out / mac_out.sum(dim=-1, keepdim=True)
@@ -370,16 +385,11 @@ class OffPGLearner:
         target_inputs = self.target_critic._build_inputs(batch, bs, max_t)
         target_q_vals,q1,q2,q3,q4,q5,q6,q7,q8,q9,q10 = self.target_critic.forward(target_inputs)
         target_q_vals = target_q_vals.detach()
-        #targets_taken = self.target_mixer(th.gather(target_q_vals, dim=3, index=actions).squeeze(3), states,False,None)
 
          
         all_tensors = [q1.clone().detach(),q2.clone().detach(),q3.clone().detach(),q4.clone().detach(),
                        q5.clone().detach(),q6.clone().detach(),q7.clone().detach(),q8.clone().detach(),
                        q9.clone().detach(),q10.clone().detach()]
-
-        #variance = th.var(all_tensors,dim=-1)
-        #variance = variance*mask_t
-        #moment = th.tensor(1)/(th.tensor(1)+ th.exp(variance))
 
         mone = th.zeros_like(target_q_vals)
         mechane = th.zeros_like(target_q_vals)
