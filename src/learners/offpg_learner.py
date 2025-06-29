@@ -48,6 +48,8 @@ class OffPGLearner:
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1)  # Concat over time
 
+        self.train_critic(on_batch, best_batch=off_episode_sample, log=log, mac_off = mac_out)
+        self.train(off_episode_sample, t_env, log)
     
     def train_on(self, batch: EpisodeBatch, t_env: int, log):
         # Get the relevant quantities
@@ -185,7 +187,7 @@ class OffPGLearner:
             self.logger.log_stat("pi_max", (pi.max(dim=1)[0] * mask).sum().item() / mask.sum().item(), t_env)
             self.log_stats_t = t_env
         '''
-    def train_critic(self, on_batch, best_batch=None, log=None):
+    def train_critic(self, on_batch, best_batch=None, log=None, mac_off = None):
         bs = on_batch.batch_size
         max_t = on_batch.max_seq_length
         rewards = on_batch["reward"][:, :-1]
@@ -241,10 +243,8 @@ class OffPGLearner:
         
 
 
-
-
         if best_batch is not None:
-            best_target_q, best_inputs, best_mask, best_actions, best_mac_out, best_moment= self.train_critic_best(best_batch)
+            best_target_q, best_inputs, best_mask, best_actions, best_mac_out, best_moment= self.train_critic_best(best_batch, mac_off)
 
             log["best_reward"] = th.mean(best_batch["reward"][:, :-1].squeeze(2).sum(-1), dim=0)
             target_q = best_target_q#th.cat((target_q, best_target_q), dim=0)
