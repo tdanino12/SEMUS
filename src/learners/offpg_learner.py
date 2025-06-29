@@ -365,7 +365,7 @@ class OffPGLearner:
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1).detach()
         '''
-        mac_out = mac_out_off
+        mac_out = mac_out_off.detach()
         
         # Mask out unavailable actions, renormalise (as in action selection)
         mac_out[avail_actions == 0] = 0
