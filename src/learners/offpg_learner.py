@@ -49,7 +49,7 @@ class OffPGLearner:
             mac_out.append(agent_outs)
         mac_out_critic = th.stack(mac_out, dim=1)  # Concat over time
         mac_out_actor = th.stack(mac_out[:-1], dim=1)  # Concat over time
-        self.train_critic(on_batch, best_batch=off_episode_sample, log=log, mac_off = mac_out)
+        self.train_critic(on_batch, best_batch=off_episode_sample, log=log, mac_off = mac_out_critic)
         self.train(off_episode_sample, t_env, log, mac_out_actor)
     
     def train_on(self, batch: EpisodeBatch, t_env: int, log):
