@@ -42,6 +42,7 @@ class OffPGLearner:
         self.first_ind = 0
 
     def start_training(self,on_batch, off_episode_sample, episode_sample, log, t_env: int):
+        mac_out = []
         self.mac.init_hidden(off_episode_sample.batch_size)
         for t in range(off_episode_sample.max_seq_length - 1):
             agent_outs = self.mac.forward(off_episode_sample, t=t)
