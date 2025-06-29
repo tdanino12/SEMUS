@@ -38,7 +38,7 @@ class Logger:
                 self.sacred_info["{}_T".format(key)] = [t]
                 self.sacred_info[key] = [value]
 
-    def print_recent_stats(self,cude):
+    def print_recent_stats(self,cude, t_step):
         log_str = "Recent Stats | t_env: {:>10} | Episode: {:>8}\n".format(*self.stats["episode"][-1])
         i = 0
         for (k, v) in sorted(self.stats.items()):
@@ -56,7 +56,7 @@ class Logger:
                 item = "{:.4f}".format(np.mean([x[1] for x in self.stats[k][-window:]]))
             log_str += "{:<25}{:>8}".format(k + ":", item)
             log_str += "\n" if i % 4 == 0 else "\t"
-            wandb.log({k: float(item)})
+            wandb.log({k: float(item)}, step=t_step)
         self.console_logger.info(log_str)
 
 
