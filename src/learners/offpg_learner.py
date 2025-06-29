@@ -44,13 +44,13 @@ class OffPGLearner:
     def start_training(self,on_batch, off_episode_sample, episode_sample, log, t_env: int):
         mac_out = []
         self.mac.init_hidden(off_episode_sample.batch_size)
-        for t in range(off_episode_sample.max_seq_length - 1):
+        for t in range(off_episode_sample.max_seq_length):
             agent_outs = self.mac.forward(off_episode_sample, t=t)
             mac_out.append(agent_outs)
-        mac_out = th.stack(mac_out, dim=1)  # Concat over time
-
+        mac_out_critic = th.stack(mac_out, dim=1)  # Concat over time
+        mac_out_actor = th.stack(mac_out[:-1], dim=1)  # Concat over time
         self.train_critic(on_batch, best_batch=off_episode_sample, log=log, mac_off = mac_out)
-        self.train(off_episode_sample, t_env, log)
+        self.train(off_episode_sample, t_env, log, mac_out_actor)
     
     def train_on(self, batch: EpisodeBatch, t_env: int, log):
         # Get the relevant quantities
