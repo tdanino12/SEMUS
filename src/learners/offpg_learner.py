@@ -43,7 +43,7 @@ class OffPGLearner:
 
     def start_training(self,on_batch, off_episode_sample, episode_sample, log, t_env: int):
         self.mac.init_hidden(off_episode_sample.batch_size)
-        for t in range(batch.max_seq_length - 1):
+        for t in range(off_episode_sample.max_seq_length - 1):
             agent_outs = self.mac.forward(off_episode_sample, t=t)
             mac_out.append(agent_outs)
         mac_out = th.stack(mac_out, dim=1)  # Concat over time
