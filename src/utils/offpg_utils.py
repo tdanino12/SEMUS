@@ -8,7 +8,7 @@ def build_target_q(td_q, target_q, mac, mask, gamma, td_lambda, n):
     tree_q_vals = th.zeros_like(td_q)
     coeff = 1.0
     t1 = td_q[:]
-    for i in range(10):#range(n):
+    for i in range(6):#range(n):
         tree_q_vals += t1 * coeff
 
         out = mac.unfold(1, i, 1).prod(dim=-1) #sum(dim=-1)
